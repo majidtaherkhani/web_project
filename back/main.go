@@ -43,7 +43,7 @@ func main() {
 	router.GET("/api/:username/profile", getProfile)
 	router.POST("/api/createPost", createPost)
 	router.POST("api/like/:postId/:username", likePost)
-	router.GET("/api/getPost/:postId", getPost)
+	router.GET("/api/:postId/getPost", getPost)
 
 	router.Run(":8080")
 }
@@ -468,11 +468,11 @@ func getPost(c *gin.Context) {
 		c.JSON(401, gin.H{
 			"message": "permission denied.",
 		})
-		return
+		// return
 	}
 	fmt.Println(userEmail)
 	postId := c.Param("postId")
-	return findPostById(c, postId)
+	findPostById(c, postId)
 
 }
 
@@ -486,7 +486,26 @@ func findPostById(c *gin.Context, postId string) {
 			"message": "username already exist.",
 		})
 		return
-	} else {
-
 	}
+	commentFilter := bson.M{"parent": postId}
+	var coments []Post
+	cur, err := collection.Find(context.TODO(), commentFilter)
+	if err == nil {
+		c.JSON(409, gin.H{
+			"message": "username already exist.",
+		})
+		return
+	}
+	for cur.Next(context.TODO()) {
+		var coment Post
+		if err = cur.Decode(&coment); err != nil {
+			fmt.Println("sag")
+			return
+		}
+		coments = append(coments, coment)
+	}
+	c.JSON(200, gin.H{
+		"post":    post,
+		"coments": coments,
+	})
 }
