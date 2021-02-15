@@ -45,6 +45,7 @@ func main() {
 	router.POST("/api/like/:postId", likePost)
 	router.GET("/api/getPost/:postId", getPost)
 	router.POST("/api/follow/:username", followUnfollow)
+	router.GET("/api/timeline", getTimeline)
 
 	router.Run(":8080")
 }
@@ -264,7 +265,7 @@ func editProfile(c *gin.Context) {
 
 	filter := bson.M{
 		"username": bson.M{
-			"$eq": username, // check if bool field has value of 'false'
+			"$eq": username,
 		},
 	}
 	update := bson.M{"$set": bson.M{
@@ -338,7 +339,7 @@ type Post struct {
 	Content    string   `json:"content,omitempty"`
 	Parent     string   `json:"parent,omitempty"`
 	Likes      []string `json:"likes,omitempty"`
-	Created_at string   `json:"created-at,omitempty"`
+	Created_at int64    `json:"created-at,omitempty"`
 }
 
 func likePost(c *gin.Context) {
@@ -433,7 +434,7 @@ func createPost(c *gin.Context) {
 	collection := client.Database("Web_HW3").Collection("Post")
 	id := generateRandom()
 	insertResult, _ := collection.InsertOne(context.TODO(), Post{Id: id, Creator: username, Content: content, Parent: parent,
-		Created_at: time.Now().Format("01-02-2006")})
+		Created_at: time.Now().Unix()})
 	c.JSON(201, gin.H{
 		"id": insertResult.InsertedID,
 	})
@@ -500,7 +501,6 @@ func findPostById(c *gin.Context, postId string) {
 	for cur.Next(context.TODO()) {
 		var coment Post
 		if err = cur.Decode(&coment); err != nil {
-			fmt.Println("sag")
 			return
 		}
 		coments = append(coments, coment)
@@ -555,7 +555,6 @@ func followUnfollow(c *gin.Context) {
 }
 
 func unfollow(c *gin.Context, user User, target User, followerIndex int, followingIndex int) {
-	fmt.Println("sagggg")
 	collection := client.Database("Web_HW3").Collection("User")
 	followings := user.Followings
 	copy(followings[followingIndex:], followings[followingIndex+1:])
@@ -606,7 +605,6 @@ func unfollow(c *gin.Context, user User, target User, followerIndex int, followi
 }
 
 func follow(c *gin.Context, user User, target User) {
-	fmt.Println("harrrr")
 	collection := client.Database("Web_HW3").Collection("User")
 	followings := append(user.Followings, target.Username)
 	filterM := bson.M{
@@ -646,4 +644,70 @@ func follow(c *gin.Context, user User, target User) {
 		return
 	}
 	fmt.Println(resultT.UpsertedID)
+}
+
+//////timeline
+
+func getTimeline(c *gin.Context) {
+	username, ok := validateToken(c)
+	if !ok {
+		c.JSON(401, gin.H{
+			"message": "permission denied.",
+		})
+		return
+	}
+	fromDate := time.Now().Unix()
+	// toDate := time.Now().UTC()
+	collectionP := client.Database("Web_HW3").Collection("Post")
+	collectionU := client.Database("Web_HW3").Collection("User")
+	var posts []Post
+	fmt.Println(fromDate)
+	filter := bson.M{
+		"created-at": bson.M{
+			"$lt": fromDate,
+		},
+	}
+	curP, errP := collectionP.Find(context.TODO(), filter)
+	if errP != nil {
+		c.JSON(409, gin.H{
+			"message": "usposts",
+		})
+		return
+	}
+	for curP.Next(context.TODO()) {
+		var post Post
+		if err = curP.Decode(&post); err != nil {
+			return
+		}
+		posts = append(posts, post)
+	}
+	fmt.Println(username)
+	filterU := bson.M{
+		"username": bson.M{
+			"$eq": username,
+		},
+	}
+	var user User
+	err = collectionU.FindOne(context.TODO(), filterU).Decode(&user)
+	if err != nil {
+		c.JSON(409, gin.H{
+			"message": "u.",
+		})
+		return
+	}
+	var finalPosts []Post
+	fmt.Println(len(posts))
+	fmt.Println(user.Username)
+	for i := range posts {
+		for j := range user.Followings {
+			if posts[i].Creator == user.Followings[j] {
+				if posts[i].Parent == "" {
+					finalPosts = append(finalPosts, posts[i])
+				}
+			}
+		}
+	}
+	c.JSON(200, gin.H{
+		"timeLinke": finalPosts,
+	})
 }
