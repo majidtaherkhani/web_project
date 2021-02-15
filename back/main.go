@@ -40,15 +40,16 @@ func main() {
 	router.POST("/api/signup", signUp)
 	router.POST("/api/signin", signIn)
 	router.POST("/api/edit", editProfile)
-	router.GET("/api/:username/profile", getProfile)
+	router.GET("/api/profile", getProfile)
 	router.POST("/api/createPost", createPost)
-	router.POST("api/like/:postId/:username", likePost)
-	router.GET("/api/:postId/getPost", getPost)
+	router.POST("/api/like/:postId", likePost)
+	router.GET("/api/getPost/:postId", getPost)
+	router.POST("/api/follow/:username", followUnfollow)
 
 	router.Run(":8080")
 }
 
-func validateToken(c *gin.Context) (userEmail string, ok bool) {
+func validateToken(c *gin.Context) (username string, ok bool) {
 	tknString, err := c.Cookie("token")
 	if err != nil {
 		return "not_set", false
@@ -60,7 +61,7 @@ func validateToken(c *gin.Context) (userEmail string, ok bool) {
 	if err != nil || !tkn.Valid {
 		return "not_set", false
 	}
-	return claims.Email, true
+	return claims.Username, true
 }
 
 // checks if form has keys matching the keys array.
@@ -141,20 +142,20 @@ func validateSigninRequest(c *gin.Context) bool {
 func validateEditRequest(c *gin.Context) bool {
 	c.Request.ParseMultipartForm(1000)
 	myform := c.Request.PostForm
-	if !isFormValid(myform, []string{"username", "bio", "email", "password"}) {
+	if !isFormValid(myform, []string{"bio", "email", "password"}) {
 		c.JSON(400, gin.H{
-			"message": "Request Length should be 4",
+			"message": "Request Length should be 3",
 		})
 		return false
 	}
 	return true
 }
 
-func makeToken(email string) (string, bool) {
-	expirationTime := time.Now().Add(60 * time.Hour)
+func makeToken(username string) (string, bool) {
+	expirationTime := time.Now().Add(6000 * time.Hour)
 	// build token
 	claims := &Claims{
-		Email: email,
+		Username: username,
 		StandardClaims: jwt.StandardClaims{
 			// In JWT, the expiry time is expressed as unix milliseconds
 			ExpiresAt: expirationTime.Unix(),
@@ -170,7 +171,7 @@ func makeToken(email string) (string, bool) {
 }
 
 type Claims struct {
-	Email string `json:"email"`
+	Username string `json:"username"`
 	jwt.StandardClaims
 }
 
@@ -217,7 +218,7 @@ func signUp(c *gin.Context) {
 }
 
 func getProfile(c *gin.Context) {
-	userEmail, ok := validateToken(c)
+	username, ok := validateToken(c)
 	if !ok {
 		c.JSON(401, gin.H{
 			"message": "permission denied.",
@@ -225,9 +226,6 @@ func getProfile(c *gin.Context) {
 		return
 	}
 	collection := client.Database("Web_HW3").Collection("User")
-	username := c.Param("username")
-	fmt.Println(username)
-	fmt.Println(userEmail)
 	filter := bson.M{"username": username}
 	var profile User
 	err = collection.FindOne(context.TODO(), filter).Decode(&profile)
@@ -242,7 +240,7 @@ func getProfile(c *gin.Context) {
 }
 
 func editProfile(c *gin.Context) {
-	userEmail, ok := validateToken(c)
+	username, ok := validateToken(c)
 	if !ok {
 		c.JSON(401, gin.H{
 			"message": "permission denied.",
@@ -251,9 +249,8 @@ func editProfile(c *gin.Context) {
 	} else if !validateEditRequest(c) {
 		return
 	}
-	fmt.Println(userEmail)
+	fmt.Println(username)
 	myform := c.Request.PostForm
-	username := myform["username"][0]
 	bio := myform["bio"][0]
 	email := myform["email"][0]
 	password := myform["password"][0]
@@ -282,10 +279,15 @@ func editProfile(c *gin.Context) {
 	)
 	if err != nil {
 		c.JSON(400, gin.H{
-			"ine": result.UpsertedID,
+			"message": "username is not valid",
 		})
 		return
 	}
+	c.JSON(400, gin.H{
+		"profile": result,
+	})
+	return
+
 }
 
 func signIn(c *gin.Context) {
@@ -320,11 +322,13 @@ func signIn(c *gin.Context) {
 }
 
 type User struct {
-	Email      string `json:"email,omitempty"`
-	Username   string `json:"username,omitempty"`
-	Password   string `json:"password,omitempty"`
-	Bio        string `json:"bio,omitempty"`
-	Created_at string `json:"created-at,omitempty"`
+	Email      string   `json:"email,omitempty"`
+	Username   string   `json:"username,omitempty"`
+	Password   string   `json:"password,omitempty"`
+	Bio        string   `json:"bio,omitempty"`
+	Followers  []string `json:"followers,omitempty"`
+	Followings []string `json:"following,omitempty"`
+	Created_at string   `json:"created-at,omitempty"`
 }
 
 //////////////////post
@@ -338,17 +342,15 @@ type Post struct {
 }
 
 func likePost(c *gin.Context) {
-	userEmail, ok := validateToken(c)
+	username, ok := validateToken(c)
 	if !ok {
 		c.JSON(401, gin.H{
 			"message": "permission denied.",
 		})
 		return
 	}
-	fmt.Println(userEmail)
 	collection := client.Database("Web_HW3").Collection("Post")
 	postId := c.Param("postId")
-	username := c.Param("username")
 	filterF := bson.M{"_id": postId}
 	var post Post
 	err = collection.FindOne(context.TODO(), filterF).Decode(&post)
@@ -415,7 +417,7 @@ func removeLike(c *gin.Context, index int, likes []string, postId string) {
 }
 
 func createPost(c *gin.Context) {
-	userEmail, ok := validateToken(c)
+	username, ok := validateToken(c)
 	if !ok {
 		c.JSON(401, gin.H{
 			"message": "permission denied.",
@@ -430,7 +432,7 @@ func createPost(c *gin.Context) {
 	parent := myform["parent"][0]
 	collection := client.Database("Web_HW3").Collection("Post")
 	id := generateRandom()
-	insertResult, _ := collection.InsertOne(context.TODO(), Post{Id: id, Creator: userEmail, Content: content, Parent: parent,
+	insertResult, _ := collection.InsertOne(context.TODO(), Post{Id: id, Creator: username, Content: content, Parent: parent,
 		Created_at: time.Now().Format("01-02-2006")})
 	c.JSON(201, gin.H{
 		"id": insertResult.InsertedID,
@@ -463,17 +465,16 @@ func validatePost(c *gin.Context) bool {
 }
 
 func getPost(c *gin.Context) {
-	userEmail, ok := validateToken(c)
+	username, ok := validateToken(c)
 	if !ok {
 		c.JSON(401, gin.H{
 			"message": "permission denied.",
 		})
 		// return
 	}
-	fmt.Println(userEmail)
+	fmt.Println(username)
 	postId := c.Param("postId")
 	findPostById(c, postId)
-
 }
 
 func findPostById(c *gin.Context, postId string) {
@@ -481,7 +482,7 @@ func findPostById(c *gin.Context, postId string) {
 	filter := bson.M{"_id": postId}
 	var post Post
 	err = collection.FindOne(context.TODO(), filter).Decode(&post)
-	if err == nil {
+	if err != nil {
 		c.JSON(409, gin.H{
 			"message": "username already exist.",
 		})
@@ -490,7 +491,7 @@ func findPostById(c *gin.Context, postId string) {
 	commentFilter := bson.M{"parent": postId}
 	var coments []Post
 	cur, err := collection.Find(context.TODO(), commentFilter)
-	if err == nil {
+	if err != nil {
 		c.JSON(409, gin.H{
 			"message": "username already exist.",
 		})
@@ -508,4 +509,141 @@ func findPostById(c *gin.Context, postId string) {
 		"post":    post,
 		"coments": coments,
 	})
+}
+
+///follower following
+func followUnfollow(c *gin.Context) {
+	username, ok := validateToken(c)
+	if !ok {
+		c.JSON(401, gin.H{
+			"message": "permission denied.",
+		})
+		return
+	}
+	targetUsername := c.Param("username")
+	collection := client.Database("Web_HW3").Collection("User")
+	filterMain := bson.M{"username": username}
+	filterTarget := bson.M{"username": targetUsername}
+	var mainUser User
+	var targetUser User
+	err = collection.FindOne(context.TODO(), filterMain).Decode(&mainUser)
+	if err != nil {
+		c.JSON(409, gin.H{
+			"message": "main username already exist.",
+		})
+		return
+	}
+	err = collection.FindOne(context.TODO(), filterTarget).Decode(&targetUser)
+	if err != nil {
+		c.JSON(409, gin.H{
+			"message": "target username already exist.",
+		})
+		return
+	}
+	for i := range mainUser.Followings {
+		if mainUser.Followings[i] == targetUsername {
+			for j := range targetUser.Followers {
+				if targetUser.Followers[j] == username {
+					unfollow(c, mainUser, targetUser, j, i)
+					return
+				}
+			}
+		}
+	}
+	follow(c, mainUser, targetUser)
+	return
+}
+
+func unfollow(c *gin.Context, user User, target User, followerIndex int, followingIndex int) {
+	fmt.Println("sagggg")
+	collection := client.Database("Web_HW3").Collection("User")
+	followings := user.Followings
+	copy(followings[followingIndex:], followings[followingIndex+1:])
+	followings[len(followings)-1] = ""
+	followings = followings[:len(followings)-1]
+	filterM := bson.M{
+		"username": bson.M{
+			"$eq": user.Username,
+		},
+	}
+	updateM := bson.M{"$set": bson.M{"followings": followings}}
+	resultM, errM := collection.UpdateOne(
+		context.Background(),
+		filterM,
+		updateM,
+	)
+	if errM != nil {
+		c.JSON(400, gin.H{
+			"message": "error",
+		})
+		return
+	}
+	fmt.Println(resultM.UpsertedID)
+
+	followers := target.Followers
+	copy(followers[followerIndex:], followers[followerIndex+1:])
+	followers[len(followers)-1] = ""
+	followers = followers[:len(followers)-1]
+	filterT := bson.M{
+		"username": bson.M{
+			"$eq": target.Username,
+		},
+	}
+	updateT := bson.M{"$set": bson.M{"followers": followers}}
+	resultT, errT := collection.UpdateOne(
+		context.Background(),
+		filterT,
+		updateT,
+	)
+	if errT != nil {
+		c.JSON(400, gin.H{
+			"message": "error",
+		})
+		return
+	}
+	fmt.Println(resultT.UpsertedID)
+
+}
+
+func follow(c *gin.Context, user User, target User) {
+	fmt.Println("harrrr")
+	collection := client.Database("Web_HW3").Collection("User")
+	followings := append(user.Followings, target.Username)
+	filterM := bson.M{
+		"username": bson.M{
+			"$eq": user.Username,
+		},
+	}
+	updateM := bson.M{"$set": bson.M{"followings": followings}}
+	resultM, err := collection.UpdateOne(
+		context.Background(),
+		filterM,
+		updateM,
+	)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"message": "error",
+		})
+		return
+	}
+	fmt.Println(resultM.UpsertedID)
+	followers := append(target.Followers, user.Username)
+	filterT := bson.M{
+		"username": bson.M{
+			"$eq": target.Username,
+		},
+	}
+	updateT := bson.M{"$set": bson.M{"followers": followers}}
+	resultT, errt := collection.UpdateOne(
+		context.Background(),
+		filterT,
+		updateT,
+	)
+	if errt != nil {
+		c.JSON(400, gin.H{
+			"message": "error",
+		})
+		return
+	}
+	fmt.Println(resultT.UpsertedID)
 }
