@@ -43,9 +43,14 @@ func main() {
 	router.GET("/api/profile", getProfile)
 	router.POST("/api/createPost", createPost)
 	router.POST("/api/like/:postId", likePost)
+	router.POST("/api/mark", markPost)
 	router.GET("/api/getPost/:postId", getPost)
+	router.GET("/api/getComments/:postId", getComent)
 	router.POST("/api/follow/:username", followUnfollow)
 	router.GET("/api/timeline", getTimeline)
+	router.GET("/api/followers", getFollowers)
+	router.GET("/api/followings", getFollowings)
+	router.GET("/api/bookMars", getBookmarls)
 
 	router.Run(":8080")
 }
@@ -140,12 +145,20 @@ func validateSigninRequest(c *gin.Context) bool {
 	return true
 }
 
+func getUserById(username string) User {
+	collection := client.Database("Web_HW3").Collection("User")
+	filter := bson.M{"username": username}
+	var user User
+	err = collection.FindOne(context.TODO(), filter).Decode(&user)
+	return user
+}
+
 func validateEditRequest(c *gin.Context) bool {
 	c.Request.ParseMultipartForm(1000)
 	myform := c.Request.PostForm
-	if !isFormValid(myform, []string{"bio", "email", "password"}) {
+	if !isFormValid(myform, []string{"bio", "fullName", "email", "password"}) {
 		c.JSON(400, gin.H{
-			"message": "Request Length should be 3",
+			"message": "Request Length should be 4",
 		})
 		return false
 	}
@@ -236,8 +249,30 @@ func getProfile(c *gin.Context) {
 		})
 		return
 	}
+	collectionP := client.Database("Web_HW3").Collection("Post")
+	var posts []Post
+	filterP := bson.M{
+		"creator": bson.M{
+			"$eq": username,
+		},
+	}
+	curP, errP := collectionP.Find(context.TODO(), filterP)
+	if errP != nil {
+		c.JSON(409, gin.H{
+			"message": "error in find posts",
+		})
+		return
+	}
+	for curP.Next(context.TODO()) {
+		var post Post
+		if err = curP.Decode(&post); err != nil {
+			return
+		}
+		posts = append(posts, post)
+	}
 	c.JSON(200, bson.M{"bio": profile.Bio,
-		"email": profile.Email})
+		"email": profile.Email,
+		"posts": posts})
 }
 
 func editProfile(c *gin.Context) {
@@ -255,6 +290,7 @@ func editProfile(c *gin.Context) {
 	bio := myform["bio"][0]
 	email := myform["email"][0]
 	password := myform["password"][0]
+	fullName := myform["fullName"][0]
 	if !isEmailValid(email) {
 		c.JSON(400, gin.H{
 			"message": "filed `email` is not valid",
@@ -270,6 +306,7 @@ func editProfile(c *gin.Context) {
 	}
 	update := bson.M{"$set": bson.M{
 		"bio":      bio,
+		"fullName": fullName,
 		"email":    email,
 		"password": password,
 	}}
@@ -325,10 +362,12 @@ func signIn(c *gin.Context) {
 type User struct {
 	Email      string   `json:"email,omitempty"`
 	Username   string   `json:"username,omitempty"`
+	FullName   string   `json:"fullName,omitempty"`
 	Password   string   `json:"password,omitempty"`
 	Bio        string   `json:"bio,omitempty"`
 	Followers  []string `json:"followers,omitempty"`
 	Followings []string `json:"following,omitempty"`
+	BookMark   []string `json:"bookMark,omitempty"`
 	Created_at string   `json:"created-at,omitempty"`
 }
 
@@ -340,6 +379,88 @@ type Post struct {
 	Parent     string   `json:"parent,omitempty"`
 	Likes      []string `json:"likes,omitempty"`
 	Created_at int64    `json:"created-at,omitempty"`
+}
+
+func markPost(c *gin.Context) {
+	username, ok := validateToken(c)
+	if !ok {
+		c.JSON(401, gin.H{
+			"message": "permission denied.",
+		})
+		return
+	}
+	collection := client.Database("Web_HW3").Collection("User")
+	postId := c.Param("postId")
+	filterU := bson.M{
+		"username": bson.M{
+			"$eq": username,
+		},
+	}
+	var user User
+	err = collection.FindOne(context.TODO(), filterU).Decode(&user)
+	if err != nil {
+		c.JSON(409, gin.H{
+			"message": "error",
+		})
+		return
+	}
+	for i := range user.BookMark {
+		if user.BookMark[i] == postId {
+			removeMark(c, i, user)
+			return
+		}
+	}
+	saveMark(c, user, postId)
+	return
+}
+func removeMark(c *gin.Context, index int, user User) {
+	collection := client.Database("Web_HW3").Collection("User")
+	marks := user.BookMark
+	copy(marks[index:], marks[index+1:])
+	marks[len(marks)-1] = ""
+	marks = marks[:len(marks)-1]
+	filter := bson.M{
+		"username": bson.M{
+			"$eq": user.Username,
+		},
+	}
+	update := bson.M{"$set": bson.M{"bookMark": marks}}
+	result, err := collection.UpdateOne(
+		context.Background(),
+		filter,
+		update,
+	)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"message": "update failed",
+		})
+		return
+	}
+	fmt.Println(result.UpsertedID)
+}
+
+func saveMark(c *gin.Context, user User, postId string) {
+	marks := append(user.BookMark, postId)
+	collection := client.Database("Web_HW3").Collection("Post")
+	filter := bson.M{
+		"username": bson.M{
+			"$eq": user.Username,
+		},
+	}
+	update := bson.M{"$set": bson.M{"bookMark": marks}}
+	result, err := collection.UpdateOne(
+		context.Background(),
+		filter,
+		update,
+	)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"message": "update falled",
+		})
+		return
+	}
+	fmt.Println(result.UpsertedID)
+
 }
 
 func likePost(c *gin.Context) {
@@ -357,7 +478,7 @@ func likePost(c *gin.Context) {
 	err = collection.FindOne(context.TODO(), filterF).Decode(&post)
 	if err != nil {
 		c.JSON(400, gin.H{
-			"message": "url id is not valid",
+			"message": "post id is not valid",
 		})
 		return
 	}
@@ -387,10 +508,11 @@ func saveLike(c *gin.Context, likes []string, postId string, username string) {
 	)
 	if err != nil {
 		c.JSON(400, gin.H{
-			"ine": result.UpsertedID,
+			"message": "update falled",
 		})
 		return
 	}
+	fmt.Println(result.UpsertedID)
 }
 
 func removeLike(c *gin.Context, index int, likes []string, postId string) {
@@ -411,10 +533,19 @@ func removeLike(c *gin.Context, index int, likes []string, postId string) {
 	)
 	if err != nil {
 		c.JSON(400, gin.H{
-			"ine": result.UpsertedID,
+			"message": "update failed",
 		})
 		return
 	}
+	fmt.Println(result.UpsertedID)
+}
+
+func getPostById(postId string) Post {
+	collection := client.Database("Web_HW3").Collection("Post")
+	filter := bson.M{"_id": postId}
+	var post Post
+	err = collection.FindOne(context.TODO(), filter).Decode(&post)
+	return post
 }
 
 func createPost(c *gin.Context) {
@@ -471,30 +602,42 @@ func getPost(c *gin.Context) {
 		c.JSON(401, gin.H{
 			"message": "permission denied.",
 		})
-		// return
+		return
 	}
 	fmt.Println(username)
 	postId := c.Param("postId")
-	findPostById(c, postId)
-}
-
-func findPostById(c *gin.Context, postId string) {
 	collection := client.Database("Web_HW3").Collection("Post")
 	filter := bson.M{"_id": postId}
 	var post Post
 	err = collection.FindOne(context.TODO(), filter).Decode(&post)
 	if err != nil {
 		c.JSON(409, gin.H{
-			"message": "username already exist.",
+			"message": "failed",
 		})
 		return
 	}
+	c.JSON(200, gin.H{
+		"post": post,
+	})
+	return
+}
+func getComent(c *gin.Context) {
+	username, ok := validateToken(c)
+	if !ok {
+		c.JSON(401, gin.H{
+			"message": "permission denied.",
+		})
+		return
+	}
+	fmt.Println(username)
+	collection := client.Database("Web_HW3").Collection("Post")
+	postId := c.Param("postId")
 	commentFilter := bson.M{"parent": postId}
 	var coments []Post
 	cur, err := collection.Find(context.TODO(), commentFilter)
 	if err != nil {
 		c.JSON(409, gin.H{
-			"message": "username already exist.",
+			"message": "failed",
 		})
 		return
 	}
@@ -506,9 +649,9 @@ func findPostById(c *gin.Context, postId string) {
 		coments = append(coments, coment)
 	}
 	c.JSON(200, gin.H{
-		"post":    post,
-		"coments": coments,
+		"comment": coments,
 	})
+	return
 }
 
 ///follower following
@@ -529,14 +672,14 @@ func followUnfollow(c *gin.Context) {
 	err = collection.FindOne(context.TODO(), filterMain).Decode(&mainUser)
 	if err != nil {
 		c.JSON(409, gin.H{
-			"message": "main username already exist.",
+			"message": "failed",
 		})
 		return
 	}
 	err = collection.FindOne(context.TODO(), filterTarget).Decode(&targetUser)
 	if err != nil {
 		c.JSON(409, gin.H{
-			"message": "target username already exist.",
+			"message": "failed",
 		})
 		return
 	}
@@ -656,21 +799,14 @@ func getTimeline(c *gin.Context) {
 		})
 		return
 	}
-	fromDate := time.Now().Unix()
-	// toDate := time.Now().UTC()
 	collectionP := client.Database("Web_HW3").Collection("Post")
 	collectionU := client.Database("Web_HW3").Collection("User")
 	var posts []Post
-	fmt.Println(fromDate)
-	filter := bson.M{
-		"created-at": bson.M{
-			"$lt": fromDate,
-		},
-	}
-	curP, errP := collectionP.Find(context.TODO(), filter)
+	filterP := bson.M{}
+	curP, errP := collectionP.Find(context.TODO(), filterP)
 	if errP != nil {
 		c.JSON(409, gin.H{
-			"message": "usposts",
+			"message": "failed",
 		})
 		return
 	}
@@ -691,7 +827,7 @@ func getTimeline(c *gin.Context) {
 	err = collectionU.FindOne(context.TODO(), filterU).Decode(&user)
 	if err != nil {
 		c.JSON(409, gin.H{
-			"message": "u.",
+			"message": "error",
 		})
 		return
 	}
@@ -708,6 +844,55 @@ func getTimeline(c *gin.Context) {
 		}
 	}
 	c.JSON(200, gin.H{
-		"timeLinke": finalPosts,
+		"timeLine": finalPosts,
 	})
+}
+
+func getFollowers(c *gin.Context) {
+	username, ok := validateToken(c)
+	if !ok {
+		c.JSON(401, gin.H{
+			"message": "permission denied.",
+		})
+		return
+	}
+	user := getUserById(username)
+	c.JSON(200, gin.H{
+		"followers": user.Followers,
+	})
+	return
+}
+
+func getFollowings(c *gin.Context) {
+	username, ok := validateToken(c)
+	if !ok {
+		c.JSON(401, gin.H{
+			"message": "permission denied.",
+		})
+		return
+	}
+	user := getUserById(username)
+	c.JSON(200, gin.H{
+		"followers": user.Followings,
+	})
+	return
+}
+
+func getBookmarls(c *gin.Context) {
+	username, ok := validateToken(c)
+	if !ok {
+		c.JSON(401, gin.H{
+			"message": "permission denied.",
+		})
+		return
+	}
+	user := getUserById(username)
+	var posts []Post
+	for i := range user.BookMark {
+		posts = append(posts, getPostById(user.BookMark[i]))
+	}
+	c.JSON(200, gin.H{
+		"posts": posts,
+	})
+	return
 }
