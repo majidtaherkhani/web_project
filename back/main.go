@@ -272,7 +272,7 @@ func getProfile(c *gin.Context) {
 	}
 	c.JSON(200, bson.M{"bio": profile.Bio,
 		"email": profile.Email,
-		"posts": posts})
+		"posts": convertPosts(posts, username)})
 }
 
 func editProfile(c *gin.Context) {
@@ -379,6 +379,19 @@ type Post struct {
 	Parent     string   `json:"parent,omitempty"`
 	Likes      []string `json:"likes,omitempty"`
 	Created_at int64    `json:"created-at,omitempty"`
+}
+
+type PostForUser struct {
+	Id           string   `bson:"_id" json:"id,omitempty"`
+	Creator      string   `json:"creator,omitempty"`
+	Content      string   `json:"content,omitempty"`
+	Parent       string   `json:"parent,omitempty"`
+	Likes        []string `json:"likes,omitempty"`
+	Like         bool     `json:"like,omitempty"`
+	Mark         bool     `json:"mark,omitempty"`
+	LikeNumber   int      `json:"likeNumber,omitempty"`
+	ComentNumber int      `json:"cumentNumber,omitempty"`
+	Created_at   int64    `json:"created-at,omitempty"`
 }
 
 func markPost(c *gin.Context) {
@@ -649,7 +662,7 @@ func getComent(c *gin.Context) {
 		coments = append(coments, coment)
 	}
 	c.JSON(200, gin.H{
-		"comment": coments,
+		"comment": convertPosts(coments, username),
 	})
 	return
 }
@@ -843,8 +856,9 @@ func getTimeline(c *gin.Context) {
 			}
 		}
 	}
+
 	c.JSON(200, gin.H{
-		"timeLine": finalPosts,
+		"timeLine": convertPosts(finalPosts, username),
 	})
 }
 
@@ -895,4 +909,49 @@ func getBookmarls(c *gin.Context) {
 		"posts": posts,
 	})
 	return
+}
+
+func convertPosts(posts []Post, username string) []PostForUser {
+	var finalPosts []PostForUser
+	for i := range posts {
+		finalPosts = append(finalPosts, PostForUser{Id: posts[i].Id, Creator: posts[i].Creator, Content: posts[i].Content,
+			Parent: posts[i].Parent, Likes: posts[i].Likes, Like: checkLike(posts[i], username), Mark: checkMark(posts[i], username),
+			LikeNumber: len(posts[i].Likes), ComentNumber: getComentNumber(posts[i].Id), Created_at: posts[i].Created_at})
+
+	}
+	return finalPosts
+}
+func getComentNumber(postId string) int {
+	collectionP := client.Database("Web_HW3").Collection("Post")
+	filter := bson.M{
+		"parent": bson.M{
+			"$eq": postId,
+		},
+	}
+	cur, err := collectionP.Find(context.TODO(), filter)
+	fmt.Println(err)
+	counter := 0
+	for cur.Next(context.TODO()) {
+		counter++
+	}
+	return counter
+}
+
+func checkLike(post Post, username string) bool {
+	for i := range post.Likes {
+		if post.Likes[i] == username {
+			return true
+		}
+	}
+	return false
+}
+
+func checkMark(post Post, username string) bool {
+	user := getUserById(username)
+	for i := range user.BookMark {
+		if user.BookMark[i] == post.Id {
+			return true
+		}
+	}
+	return false
 }
