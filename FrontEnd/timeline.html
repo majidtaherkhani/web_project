@@ -28,9 +28,8 @@
                     <div><a href=""><i class="fa fa-envelope-o"></i><span>Messages</span></a></div>
                     <div><a href=""><i class="fa fa-bookmark-o"></i><span>Bookmarks</span></a></div>
                     <div><a href=""><i class="fa fa-list-alt"></i><span>Lists</span></a></div>
-                    <div><a href=""><i class="fa fa-user-o"></i><span>Profile</span></a></div>
+                    <div><a onclick="profile()"><i class="fa fa-user-o"></i><span>Profile</span></a></div>
                     <div><a href=""><i class="fa fa-ellipsis-h"></i><span>More</span></a></div>
-                    <div><button>Tweet</button></div>
                 </div>
             </div>
         </div>
@@ -50,7 +49,7 @@
                 <div class="your-tweet">
                     <div class="profile-message">
                         <span><img src="images/nani.png" alt=""></span>
-                        <span><textarea placeholder="what's happening" rows="5"></textarea></span>
+                        <span><textarea placeholder="what's happening" rows="5" id="post_textarea"></textarea></span>
                     </div>
                     <div class="add-extra">
                         <!-- <div class="images-more">
@@ -59,13 +58,13 @@
                             <span><a href=""><i class="fa fa-smile-o"></i></a></span>
                             <span><a href=""><i class="fa fa-calender-plus-o"></i></a></span>
                         </div> -->
-                        <span><button>Post</button></span>
+                        <span onclick="post()"><button >Post</button></span>
                     </div>
                 </div>
 
                 <div class="others-tweets" id="others-tweets">
                     <!-- Each person -->
-                    <div class="other-tweet">
+                    <!-- <div class="other-tweet">
                         <div class="profile-msg">
                             <div class="others-profile">
                                 <img src="images/no-image.jpg" alt="">
@@ -93,105 +92,9 @@
                             </div>
                             <div class="bookmark" onclick="bookmark(this)"><i class="fa fa-bookmark"></i></div>
                         </div>
-
-                    </div>
+                    </div> -->
                     <!-- End of Each person -->
-                    <!-- Each person -->
-                    <div class="other-tweet">
-                        <div class="profile-msg">
-                            <div class="others-profile">
-                                <img src="images/no-image.jpg" alt="">
-                            </div>
-                            <div class="name-msg">
-                                <span>
-                                    <p><b>Narendra modi @narendremodi.<small>yesterday</small></b></p>
-                                </span>
-                                <div class="msg">
-                                    <p>hLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
-                                        incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
-                                        nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-                                        Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-                                        fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
-                                        culpa qui officia deserunt mollit anim id est laborum.</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="your-reaction">
-                            <div class="comment"><i class="fa fa-comment-o"></i>
-                                <p>12</p>
-                            </div>
-                            <div class="like" onclick="like(this)"><i class="fa fa-heart-o"></i>
-                                <p>12</p>
-                            </div>
-                            <div class="bookmark" onclick="bookmark(this)"><i class="fa fa-bookmark"></i></div>
-                        </div>
-
-                    </div>
-                    <!-- End of Each person -->
-                    <!-- Each person -->
-                    <div class="other-tweet">
-                        <div class="profile-msg">
-                            <div class="others-profile">
-                                <img src="images/no-image.jpg" alt="">
-                            </div>
-                            <div class="name-msg">
-                                <span>
-                                    <p><b>Narendra modi @narendremodi.<small>yesterday</small></b></p>
-                                </span>
-                                <div class="msg">
-                                    <p>hLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
-                                        incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
-                                        nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-                                        Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-                                        fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
-                                        culpa qui officia deserunt mollit anim id est laborum.</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="your-reaction">
-                            <div class="comment"><i class="fa fa-comment-o"></i>
-                                <p>12</p>
-                            </div>
-                            <div class="like" onclick="like(this)"><i class="fa fa-heart-o"></i>
-                                <p>12</p>
-                            </div>
-                            <div class="bookmark" onclick="bookmark(this)"><i class="fa fa-bookmark"></i></div>
-                        </div>
-
-                    </div>
-                    <!-- End of Each person -->
-                    <!-- Each person -->
-                    <div class="other-tweet">
-                        <div class="profile-msg">
-                            <div class="others-profile">
-                                <img src="images/no-image.jpg" alt="">
-                            </div>
-                            <div class="name-msg">
-                                <span>
-                                    <p><b>Narendra modi @narendremodi.<small>yesterday</small></b></p>
-                                </span>
-                                <div class="msg">
-                                    <p>hLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
-                                        incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
-                                        nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-                                        Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-                                        fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
-                                        culpa qui officia deserunt mollit anim id est laborum.</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="your-reaction">
-                            <div class="comment"><i class="fa fa-comment-o"></i>
-                                <p>12</p>
-                            </div>
-                            <div class="like" onclick="like(this)"><i class="fa fa-heart-o"></i>
-                                <p>12</p>
-                            </div>
-                            <div class="bookmark" onclick="bookmark(this)"><i class="fa fa-bookmark"></i></div>
-                        </div>
-
-                    </div>
-                    <!-- End of Each person -->
+                   
 
 
                 </div>

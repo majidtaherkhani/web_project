@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
@@ -39,6 +40,17 @@ func main() {
 
 	router := gin.Default()
 	router.Use(cors.Default())
+	router.LoadHTMLGlob("FrontEnd/*.html")
+	router.StaticFile("/register.css", "./FrontEnd/register.css")
+	router.StaticFile("/timeline.css", "./FrontEnd/timeline.css")
+	router.StaticFile("/register.js", "./FrontEnd/register.js")
+	router.StaticFile("/timeline.js", "./FrontEnd/timeline.js")
+	router.StaticFile("/images/nani.png", "./FrontEnd/images/nani.png")
+	router.StaticFile("/images/no-image.jpg", "./FrontEnd/images/no-image.jpg")
+	router.StaticFile("/images/profile-photo.jpg", "./FrontEnd/images/profile-photo.jpg")
+
+	router.GET("", serveHTML)
+
 	router.POST("/api/signup", signUp)
 	router.POST("/api/signin", signIn)
 	router.POST("/api/edit", editProfile)
@@ -52,9 +64,18 @@ func main() {
 	router.GET("/api/timeline", getTimeline)
 	router.GET("/api/followers", getFollowers)
 	router.GET("/api/followings", getFollowings)
-	router.GET("/api/bookMars", getBookmarls)
+	router.GET("/api/bookMarks", getBookmarls)
 
 	router.Run(":8080")
+}
+
+func serveHTML(c *gin.Context) {
+	_, ok := validateToken(c)
+	if !ok {
+		c.HTML(http.StatusOK, "register.html", nil)
+		return
+	}
+	c.HTML(http.StatusOK, "timeline.html", nil)
 }
 
 func validateToken(c *gin.Context) (username string, ok bool) {
@@ -148,7 +169,7 @@ func validateSigninRequest(c *gin.Context) bool {
 }
 
 func getUserById(username string) User {
-	collection := client.Database("Web_HW3").Collection("User")
+	collection := client.Database("web_project").Collection("User")
 	filter := bson.M{"username": username}
 	var user User
 	err = collection.FindOne(context.TODO(), filter).Decode(&user)
@@ -216,7 +237,7 @@ func signUp(c *gin.Context) {
 	username := myform["username"][0]
 	password := myform["password"][0]
 
-	collection := client.Database("Web_HW3").Collection("User")
+	collection := client.Database("web_project").Collection("User")
 	filter := bson.M{"username": username}
 	var result User
 	err = collection.FindOne(context.TODO(), filter).Decode(&result)
@@ -240,7 +261,7 @@ func getProfile(c *gin.Context) {
 		})
 		return
 	}
-	collection := client.Database("Web_HW3").Collection("User")
+	collection := client.Database("web_project").Collection("User")
 	filter := bson.M{"username": username}
 	var profile User
 	err = collection.FindOne(context.TODO(), filter).Decode(&profile)
@@ -250,7 +271,7 @@ func getProfile(c *gin.Context) {
 		})
 		return
 	}
-	collectionP := client.Database("Web_HW3").Collection("Post")
+	collectionP := client.Database("web_project").Collection("Post")
 	var posts []Post
 	filterP := bson.M{
 		"creator": bson.M{
@@ -272,8 +293,10 @@ func getProfile(c *gin.Context) {
 		posts = append(posts, post)
 	}
 	c.JSON(200, bson.M{"bio": profile.Bio,
-		"email": profile.Email,
-		"posts": convertPosts(posts, username)})
+		"email":     profile.Email,
+		"posts":     convertPosts(posts, username),
+		"following": len(profile.Followers),
+		"followers": len(profile.Followers)})
 }
 
 func editProfile(c *gin.Context) {
@@ -298,7 +321,7 @@ func editProfile(c *gin.Context) {
 		})
 		return
 	}
-	collection := client.Database("Web_HW3").Collection("User")
+	collection := client.Database("web_project").Collection("User")
 
 	filter := bson.M{
 		"username": bson.M{
@@ -337,7 +360,7 @@ func signIn(c *gin.Context) {
 	username := myform["username"][0]
 	password := myform["password"][0]
 
-	collection := client.Database("Web_HW3").Collection("User")
+	collection := client.Database("web_project").Collection("User")
 	filter := bson.M{"username": username}
 	var result User
 	err = collection.FindOne(context.TODO(), filter).Decode(&result)
@@ -403,7 +426,7 @@ func markPost(c *gin.Context) {
 		})
 		return
 	}
-	collection := client.Database("Web_HW3").Collection("User")
+	collection := client.Database("web_project").Collection("User")
 	postId := c.Param("postId")
 	filterU := bson.M{
 		"username": bson.M{
@@ -428,7 +451,7 @@ func markPost(c *gin.Context) {
 	return
 }
 func removeMark(c *gin.Context, index int, user User) {
-	collection := client.Database("Web_HW3").Collection("User")
+	collection := client.Database("web_project").Collection("User")
 	marks := user.BookMark
 	copy(marks[index:], marks[index+1:])
 	marks[len(marks)-1] = ""
@@ -455,7 +478,7 @@ func removeMark(c *gin.Context, index int, user User) {
 
 func saveMark(c *gin.Context, user User, postId string) {
 	marks := append(user.BookMark, postId)
-	collection := client.Database("Web_HW3").Collection("Post")
+	collection := client.Database("web_project").Collection("Post")
 	filter := bson.M{
 		"username": bson.M{
 			"$eq": user.Username,
@@ -485,7 +508,7 @@ func likePost(c *gin.Context) {
 		})
 		return
 	}
-	collection := client.Database("Web_HW3").Collection("Post")
+	collection := client.Database("web_project").Collection("Post")
 	postId := c.Param("postId")
 	filterF := bson.M{"_id": postId}
 	var post Post
@@ -499,6 +522,9 @@ func likePost(c *gin.Context) {
 	for i := range post.Likes {
 		if post.Likes[i] == username {
 			removeLike(c, i, post.Likes, postId)
+			c.JSON(200, gin.H{
+				"message": "post disliked",
+			})
 			return
 		}
 	}
@@ -507,7 +533,7 @@ func likePost(c *gin.Context) {
 
 }
 func saveLike(c *gin.Context, likes []string, postId string, username string) {
-	collection := client.Database("Web_HW3").Collection("Post")
+	collection := client.Database("web_project").Collection("Post")
 	nLikes := append(likes, username)
 	filterU := bson.M{
 		"_id": bson.M{
@@ -526,11 +552,14 @@ func saveLike(c *gin.Context, likes []string, postId string, username string) {
 		})
 		return
 	}
+	c.JSON(200, gin.H{
+		"message": "post liked",
+	})
 	fmt.Println(result.UpsertedID)
 }
 
 func removeLike(c *gin.Context, index int, likes []string, postId string) {
-	collection := client.Database("Web_HW3").Collection("Post")
+	collection := client.Database("web_project").Collection("Post")
 	copy(likes[index:], likes[index+1:])
 	likes[len(likes)-1] = ""
 	likes = likes[:len(likes)-1]
@@ -555,7 +584,7 @@ func removeLike(c *gin.Context, index int, likes []string, postId string) {
 }
 
 func getPostById(postId string) Post {
-	collection := client.Database("Web_HW3").Collection("Post")
+	collection := client.Database("web_project").Collection("Post")
 	filter := bson.M{"_id": postId}
 	var post Post
 	err = collection.FindOne(context.TODO(), filter).Decode(&post)
@@ -576,32 +605,26 @@ func createPost(c *gin.Context) {
 	// creator := myform["creator"][0]
 	content := myform["content"][0]
 	parent := myform["parent"][0]
-	collection := client.Database("Web_HW3").Collection("Post")
+	collection := client.Database("web_project").Collection("Post")
 	id := generateRandom()
 	insertResult, _ := collection.InsertOne(context.TODO(), Post{Id: id, Creator: username, Content: content, Parent: parent,
 		Created_at: time.Now().Unix()})
 	c.JSON(201, gin.H{
 		"id": insertResult.InsertedID,
 	})
-
 }
+
 func validatePost(c *gin.Context) bool {
 	c.Request.ParseMultipartForm(1000)
 	form := c.Request.PostForm
-	if !isFormValid(form, []string{"content", "creator", "parent"}) {
+	if !isFormValid(form, []string{"content", "parent"}) {
 		c.JSON(400, gin.H{
 			"message": "Request Length should be 3",
 		})
 		return false
 	}
-	creator := form["creator"][0]
 	content := form["content"][0]
-	if creator == "" {
-		c.JSON(400, gin.H{
-			"message": "filed `creator` is not valid",
-		})
-		return false
-	} else if content == "" {
+	if content == "" {
 		c.JSON(400, gin.H{
 			"message": "filed `content` is not valid",
 		})
@@ -620,7 +643,7 @@ func getPost(c *gin.Context) {
 	}
 	fmt.Println(username)
 	postId := c.Param("postId")
-	collection := client.Database("Web_HW3").Collection("Post")
+	collection := client.Database("web_project").Collection("Post")
 	filter := bson.M{"_id": postId}
 	var post Post
 	err = collection.FindOne(context.TODO(), filter).Decode(&post)
@@ -644,7 +667,7 @@ func getComent(c *gin.Context) {
 		return
 	}
 	fmt.Println(username)
-	collection := client.Database("Web_HW3").Collection("Post")
+	collection := client.Database("web_project").Collection("Post")
 	postId := c.Param("postId")
 	commentFilter := bson.M{"parent": postId}
 	var coments []Post
@@ -678,7 +701,7 @@ func followUnfollow(c *gin.Context) {
 		return
 	}
 	targetUsername := c.Param("username")
-	collection := client.Database("Web_HW3").Collection("User")
+	collection := client.Database("web_project").Collection("User")
 	filterMain := bson.M{"username": username}
 	filterTarget := bson.M{"username": targetUsername}
 	var mainUser User
@@ -712,7 +735,7 @@ func followUnfollow(c *gin.Context) {
 }
 
 func unfollow(c *gin.Context, user User, target User, followerIndex int, followingIndex int) {
-	collection := client.Database("Web_HW3").Collection("User")
+	collection := client.Database("web_project").Collection("User")
 	followings := user.Followings
 	copy(followings[followingIndex:], followings[followingIndex+1:])
 	followings[len(followings)-1] = ""
@@ -762,7 +785,7 @@ func unfollow(c *gin.Context, user User, target User, followerIndex int, followi
 }
 
 func follow(c *gin.Context, user User, target User) {
-	collection := client.Database("Web_HW3").Collection("User")
+	collection := client.Database("web_project").Collection("User")
 	followings := append(user.Followings, target.Username)
 	filterM := bson.M{
 		"username": bson.M{
@@ -813,8 +836,8 @@ func getTimeline(c *gin.Context) {
 		})
 		return
 	}
-	collectionP := client.Database("Web_HW3").Collection("Post")
-	collectionU := client.Database("Web_HW3").Collection("User")
+	collectionP := client.Database("web_project").Collection("Post")
+	collectionU := client.Database("web_project").Collection("User")
 	var posts []Post
 	filterP := bson.M{}
 	curP, errP := collectionP.Find(context.TODO(), filterP)
@@ -831,7 +854,7 @@ func getTimeline(c *gin.Context) {
 		}
 		posts = append(posts, post)
 	}
-	fmt.Println(username)
+	// fmt.Println(username)
 	filterU := bson.M{
 		"username": bson.M{
 			"$eq": username,
@@ -846,8 +869,8 @@ func getTimeline(c *gin.Context) {
 		return
 	}
 	var finalPosts []Post
-	fmt.Println(len(posts))
-	fmt.Println(user.Username)
+	// fmt.Println(len(posts))
+	// fmt.Println(user.Username)
 	for i := range posts {
 		for j := range user.Followings {
 			if posts[i].Creator == user.Followings[j] {
@@ -918,12 +941,12 @@ func convertPosts(posts []Post, username string) []PostForUser {
 		finalPosts = append(finalPosts, PostForUser{Id: posts[i].Id, Creator: posts[i].Creator, Content: posts[i].Content,
 			Parent: posts[i].Parent, Likes: posts[i].Likes, Like: checkLike(posts[i], username), Mark: checkMark(posts[i], username),
 			LikeNumber: len(posts[i].Likes), ComentNumber: getComentNumber(posts[i].Id), Created_at: posts[i].Created_at})
-
 	}
 	return finalPosts
 }
+
 func getComentNumber(postId string) int {
-	collectionP := client.Database("Web_HW3").Collection("Post")
+	collectionP := client.Database("web_project").Collection("Post")
 	filter := bson.M{
 		"parent": bson.M{
 			"$eq": postId,

@@ -28,7 +28,7 @@ function signIn() {
 	};
 	fetch(url + "/api/signin", request).then(function (response) {
 		if (response.status == 200) {
-			// location.replace(url)
+			location.replace(url)
 		} else {
 			response.text().then(function (res) {
 				window.confirm(JSON.parse(res)["message"])
@@ -55,10 +55,7 @@ function signUp() {
 	fetch(url + "/api/signup", request).then(function (response) {
 		stat = response.status
 		if (stat == 201) {
-			// location.replace(url)
-			response.text().then(function (res) {
-				console.log(JSON.parse(res)["message"])
-			})
+			location.replace(url)
 		} else {
 			response.text().then(function (res) {
 				window.confirm(JSON.parse(res)["message"])
