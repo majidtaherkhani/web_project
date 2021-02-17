@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/gin-contrib/cors"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -37,6 +38,7 @@ func main() {
 	}
 
 	router := gin.Default()
+	router.Use(cors.Default())
 	router.POST("/api/signup", signUp)
 	router.POST("/api/signin", signIn)
 	router.POST("/api/edit", editProfile)
@@ -223,12 +225,11 @@ func signUp(c *gin.Context) {
 			"message": "username already exist.",
 		})
 		return
-	} else {
-		collection.InsertOne(context.TODO(), User{Email: email, Username: username, Password: password, Created_at: time.Now().Format("01-02-2006")})
-		c.JSON(201, gin.H{
-			"massage": "user has been created",
-		})
 	}
+	collection.InsertOne(context.TODO(), User{Email: email, Username: username, Password: password, Created_at: time.Now().Format("01-02-2006")})
+	c.JSON(201, gin.H{
+		"message": "user has been created",
+	})
 }
 
 func getProfile(c *gin.Context) {
@@ -353,7 +354,7 @@ func signIn(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("token", tokenString, 3600, "/", "localhost", false, true)
+	c.SetCookie("token", tokenString, 3600, "/", "localhost", false, false)
 	c.JSON(200, gin.H{
 		"message": tokenString,
 	})
