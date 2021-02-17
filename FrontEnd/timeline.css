@@ -1,8 +1,9 @@
 /* grid-template-columns: 26% 39% 35%;
 grid-template-columns: 10% 50% 40%;
 grid-template-columns: 100%; */
-
-
+textarea{
+    border: none;
+}
 *{
     padding: 0;
     margin: 0;
@@ -43,6 +44,7 @@ grid-template-columns: 100%; */
 }
 .option div{
     padding: 2% 0 8% 31%;
+    cursor: pointer;
 }
 .option div a i{
     padding: 0 20px 0 0;
@@ -715,5 +717,41 @@ grid-template-columns: 100%; */
 .option-active{
     color: #00a7ff;
     background-color: #e1f5ff;
+}
+
+.commentBox{
+    /* padding: 5px 0px; */
+    position: sticky;
+    bottom: 0px;
+    left: 5px;
+    right: 5px;
+    display: flex;
+    justify-content: center;
+    align-content: center;
+    align-items: center;
+    margin: auto 10px;
+    /* width: 100%; */
+    background-color: white;
+}
+.commentText{
+    height: 30px;
+    resize: none;
+    word-wrap: 100%;
+    width: calc(100% - 10px);
+    padding-right: 20px;
+    border: none;
+    font-size: 20px;
+    transition: height 0.3s linear;
+}
+.commentText:focus{
+    height: 60px;
+}
+.fa-paper-plane{
+    /* position: absolute; */
+    /* right: 30px; */
+    margin: auto 10px;
+    cursor: pointer;
+    font-size:24px;
+    color: #00A7FF;
 }
 

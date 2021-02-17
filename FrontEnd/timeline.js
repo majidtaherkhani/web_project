@@ -1,4 +1,5 @@
 url = "http://localhost:8080"
+var current_post_comments = null
 function post() {
     post_content = document.getElementById("post_textarea").value
     data = `content=${post_content}&parent=""`
@@ -28,11 +29,13 @@ function profile(user_id) {
         method: 'GET',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }
     };
-    fetch(url + "/api/profile", request).then(function (response) {
+    targetURL = user_id == "" ? url + "/api/profile" : url + "/api/otherProfile/" + user_id
+    fetch(targetURL, request).then(function (response) {
         stat = response.status
         if (stat == 200) {
             response.text().then(function (res) {
                 profile_json = JSON.parse(res)
+                console.log(profile_json)
                 make_profile(profile_json)
             })
             // get timeline again
@@ -48,7 +51,8 @@ function profile(user_id) {
 }
 
 function like(outer_div) {
-    console.log(outer_div.parentNode.parentNode.id)
+    // console.log(outer_div.childNodes)
+    // outer_div.childNodes[1].innerHTML = +outer_div.childNodes[].innerHTML + 1
     var request = {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }
@@ -61,9 +65,9 @@ function like(outer_div) {
             outer_div.classList.toggle("liked")
             response.text().then(function (res) {
                 if (JSON.parse(res)["message"] == "post liked")
-                    outer_div.childNodes[2].innerHTML = +outer_div.childNodes[2].innerHTML + 1
+                    outer_div.childNodes[1].innerHTML = +outer_div.childNodes[1].innerHTML + 1
                 else
-                    outer_div.childNodes[2].innerHTML = +outer_div.childNodes[2].innerHTML - 1
+                    outer_div.childNodes[1].innerHTML = +outer_div.childNodes[1].innerHTML - 1
 
             })
         } else {
@@ -77,6 +81,29 @@ function like(outer_div) {
     })
 }
 
+function comment(comment){
+    content = comment.parentNode.childNodes[1].value
+    parent = document.getElementById("comments-others-tweets").childNodes[0].id
+    data = `content=${content}&parent=${parent}`
+    var request = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+        body: data
+    };
+    fetch(url + "/api/createPost", request).then(function (response) {
+        stat = response.status
+        if (stat == 201) {
+            document.getElementsByClassName("commentText")[0].value = ""
+            show_comments(current_post_comments)
+        } else {
+            response.text().then(function (res) {
+                window.confirm(JSON.parse(res)["message"])
+            })
+        }
+    }).catch(function (error) {
+        console.log("Error: " + error);
+    })
+}
 
 function bookmark(outer_div) {
     // fetch bookmark ...
@@ -84,6 +111,36 @@ function bookmark(outer_div) {
 }
 
 function show_comments(post) {
+    current_post_comments = post
+    comments_others_tweets = document.getElementById("comments-others-tweets")
+    comments_others_tweets.innerHTML = ""
+    comments_others_tweets.appendChild(post.parentNode.parentNode.cloneNode(true))
+    var request = {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' }
+    };
+    fetch(url + "/api/getComments/" + post.parentNode.parentNode.id, request).then(function (response) {
+        stat = response.status
+        if (stat == 200) {
+            response.text().then(function (res) {
+                for (post of JSON.parse(res).comment){
+                    comments_others_tweets.appendChild(make_post(post.id, post.fullName, post.creator, 
+                        post["created-at"], post.content, post.commentNumber, post.likeNumber, post.like, post.mark))
+                }
+                console.log(JSON.parse(res))
+            })
+        } else {
+            response.text().then(function (res) {
+                window.confirm(JSON.parse(res)["message"])
+            })
+        }
+    }).catch(function (error) {
+        console.log("Error: " + error);
+    })
+    
+    // for (i=1;i <= 4; i++){
+    //     comments_others_tweets.appendChild(make_post(123456, "matin fotouhi", "matin_ft", "yesterday", lorem_ipsum, 3, 100, true, false))
+    // }
     commentsModal = document.getElementById("commentsModal")
     commentsModal.style.display = "block"
     // commentsModal.style.opacity = 1
@@ -112,12 +169,11 @@ function make_post(post_id, poster_fullname, poster_id, post_date, post_content,
             </div>
         </div>
         <div class="your-reaction">
-            <div class="comment" onclick="show_comments(post)"><i class="fa fa-comment-o"></i><p>${post_comments}</p></div>
+            <div class="comment" onclick="show_comments(this)"><i class="fa fa-comment-o"></i><p>${post_comments}</p></div>
             <div class=\"${"like" + (isLiked ? " liked" : "")}\" onclick="like(this)"><i class=\"${isLiked ? "fa fa-heart" : "fa fa-heart-o"}\"></i><p>${post_likes}</p></div>
             <div class=\"${"bookmark" + (isBookmarked ? " bookmarked" : "")}\" onclick="bookmark(this)"><i class="fa fa-bookmark"></i></div>
         </div>
     `
-    console.log("your-reaction" + (isLiked ? " liked" : "") + (isBookmarked ? " bookmarked" : ""))
     return post
 }
 
@@ -134,7 +190,16 @@ function load_timeline() {
 }
 
 function make_profile(profile) {
-    console.log(profile)
+    you_other_tweet = document.getElementsByClassName("you-tweet-other-tweet")[0]
+    you_other_tweet.innerHTML = ""
+    you_other_tweet.appendChild(make_profile_header(profile.username, profile.posts.length, profile.following, profile.followers, profile.bio))
+    for(post of profile.posts){
+        // console.log(post["created-at"])
+        // console.log(post.id, post.fullName, profile.username, post.created-at)
+        you_other_tweet.appendChild(make_post(post.id, post.fullName, post.creator, post["created-at"], post.content, post.commentNumber, post.likeNumber, post.like, post.mark))
+    }
+    
+    // console.log(profile)
 }
 
 function make_profile_header(user_id, posts, following, followers, bio) {

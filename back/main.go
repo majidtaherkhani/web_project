@@ -326,6 +326,7 @@ func getProfile(c *gin.Context, username string, other bool, follow bool) {
 		return
 	}
 	c.JSON(200, bson.M{"bio": profile.Bio,
+		"username":  username,
 		"email":     profile.Email,
 		"posts":     convertPosts(posts, profile),
 		"following": len(profile.Followings),
@@ -439,17 +440,17 @@ type Post struct {
 }
 
 type PostForUser struct {
-	Id           string   `bson:"_id" json:"id,omitempty"`
-	Creator      string   `json:"creator"`
-	FullName     string   `json:"fullName"`
-	Content      string   `json:"content"`
-	Parent       string   `json:"parent"`
-	Likes        []string `json:"likes"`
-	Like         bool     `json:"like"`
-	Mark         bool     `json:"mark"`
-	LikeNumber   int      `json:"likeNumber"`
-	ComentNumber int      `json:"cumentNumber"`
-	Created_at   int64    `json:"created-at"`
+	Id            string   `bson:"_id" json:"id,omitempty"`
+	Creator       string   `json:"creator"`
+	FullName      string   `json:"fullName"`
+	Content       string   `json:"content"`
+	Parent        string   `json:"parent"`
+	Likes         []string `json:"likes"`
+	Like          bool     `json:"like"`
+	Mark          bool     `json:"mark"`
+	LikeNumber    int      `json:"likeNumber"`
+	CommentNumber int      `json:"commentNumber"`
+	Created_at    int64    `json:"created-at"`
 }
 
 func markPost(c *gin.Context) {
@@ -975,7 +976,7 @@ func convertPosts(posts []Post, user User) []PostForUser {
 	for i := range posts {
 		finalPosts = append(finalPosts, PostForUser{Id: posts[i].Id, Creator: posts[i].Creator, FullName: user.FullName, Content: posts[i].Content,
 			Parent: posts[i].Parent, Likes: posts[i].Likes, Like: checkLike(posts[i], user.Username), Mark: checkMark(posts[i], user),
-			LikeNumber: len(posts[i].Likes), ComentNumber: getComentNumber(posts[i].Id), Created_at: posts[i].Created_at})
+			LikeNumber: len(posts[i].Likes), CommentNumber: getComentNumber(posts[i].Id), Created_at: posts[i].Created_at})
 	}
 	return finalPosts
 }
