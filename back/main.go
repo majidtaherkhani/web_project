@@ -312,7 +312,7 @@ func getProfile(c *gin.Context, username string) {
 	c.JSON(200, bson.M{"bio": profile.Bio,
 		"email":     profile.Email,
 		"posts":     convertPosts(posts, profile),
-		"following": len(profile.Followers),
+		"following": len(profile.Followings),
 		"followers": len(profile.Followers)})
 }
 
@@ -424,16 +424,16 @@ type Post struct {
 
 type PostForUser struct {
 	Id           string   `bson:"_id" json:"id,omitempty"`
-	Creator      string   `json:"creator,omitempty"`
-	FullName     string   `json:"fullName,omitempty"`
-	Content      string   `json:"content,omitempty"`
-	Parent       string   `json:"parent,omitempty"`
-	Likes        []string `json:"likes,omitempty"`
-	Like         bool     `json:"like,omitempty"`
-	Mark         bool     `json:"mark,omitempty"`
-	LikeNumber   int      `json:"likeNumber,omitempty"`
-	ComentNumber int      `json:"cumentNumber,omitempty"`
-	Created_at   int64    `json:"created-at,omitempty"`
+	Creator      string   `json:"creator"`
+	FullName     string   `json:"fullName"`
+	Content      string   `json:"content"`
+	Parent       string   `json:"parent"`
+	Likes        []string `json:"likes"`
+	Like         bool     `json:"like"`
+	Mark         bool     `json:"mark"`
+	LikeNumber   int      `json:"likeNumber"`
+	ComentNumber int      `json:"cumentNumber"`
+	Created_at   int64    `json:"created-at"`
 }
 
 func markPost(c *gin.Context) {
