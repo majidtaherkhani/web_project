@@ -54,7 +54,8 @@ func main() {
 	router.POST("/api/signup", signUp)
 	router.POST("/api/signin", signIn)
 	router.POST("/api/edit", editProfile)
-	router.GET("/api/profile", getProfile)
+	router.GET("/api/profile", getMyProfile)
+	router.GET("/api/otherProfile/:username", getOtherProfile)
 	router.POST("/api/createPost", createPost)
 	router.POST("/api/like/:postId", likePost)
 	router.POST("/api/mark", markPost)
@@ -253,7 +254,7 @@ func signUp(c *gin.Context) {
 	})
 }
 
-func getProfile(c *gin.Context) {
+func getMyProfile(c *gin.Context) {
 	username, ok := validateToken(c)
 	if !ok {
 		c.JSON(401, gin.H{
@@ -261,6 +262,22 @@ func getProfile(c *gin.Context) {
 		})
 		return
 	}
+	getProfile(c, username)
+}
+func getOtherProfile(c *gin.Context) {
+	usernameM, ok := validateToken(c)
+	if !ok {
+		c.JSON(401, gin.H{
+			"message": "permission denied.",
+		})
+		return
+	}
+	fmt.Println(usernameM)
+	username := c.Param("username")
+	getProfile(c, username)
+}
+func getProfile(c *gin.Context, username string) {
+
 	collection := client.Database("web_project").Collection("User")
 	filter := bson.M{"username": username}
 	var profile User
@@ -294,7 +311,7 @@ func getProfile(c *gin.Context) {
 	}
 	c.JSON(200, bson.M{"bio": profile.Bio,
 		"email":     profile.Email,
-		"posts":     convertPosts(posts, username),
+		"posts":     convertPosts(posts, profile),
 		"following": len(profile.Followers),
 		"followers": len(profile.Followers)})
 }
@@ -408,6 +425,7 @@ type Post struct {
 type PostForUser struct {
 	Id           string   `bson:"_id" json:"id,omitempty"`
 	Creator      string   `json:"creator,omitempty"`
+	FullName     string   `json:"fullName,omitempty"`
 	Content      string   `json:"content,omitempty"`
 	Parent       string   `json:"parent,omitempty"`
 	Likes        []string `json:"likes,omitempty"`
@@ -685,8 +703,9 @@ func getComent(c *gin.Context) {
 		}
 		coments = append(coments, coment)
 	}
+	user := getUserById(username)
 	c.JSON(200, gin.H{
-		"comment": convertPosts(coments, username),
+		"comment": convertPosts(coments, user),
 	})
 	return
 }
@@ -882,7 +901,7 @@ func getTimeline(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{
-		"timeLine": convertPosts(finalPosts, username),
+		"timeLine": convertPosts(finalPosts, user),
 	})
 }
 
@@ -935,11 +954,11 @@ func getBookmarls(c *gin.Context) {
 	return
 }
 
-func convertPosts(posts []Post, username string) []PostForUser {
+func convertPosts(posts []Post, user User) []PostForUser {
 	var finalPosts []PostForUser
 	for i := range posts {
-		finalPosts = append(finalPosts, PostForUser{Id: posts[i].Id, Creator: posts[i].Creator, Content: posts[i].Content,
-			Parent: posts[i].Parent, Likes: posts[i].Likes, Like: checkLike(posts[i], username), Mark: checkMark(posts[i], username),
+		finalPosts = append(finalPosts, PostForUser{Id: posts[i].Id, Creator: posts[i].Creator, FullName: user.FullName, Content: posts[i].Content,
+			Parent: posts[i].Parent, Likes: posts[i].Likes, Like: checkLike(posts[i], user.Username), Mark: checkMark(posts[i], user),
 			LikeNumber: len(posts[i].Likes), ComentNumber: getComentNumber(posts[i].Id), Created_at: posts[i].Created_at})
 	}
 	return finalPosts
@@ -970,8 +989,7 @@ func checkLike(post Post, username string) bool {
 	return false
 }
 
-func checkMark(post Post, username string) bool {
-	user := getUserById(username)
+func checkMark(post Post, user User) bool {
 	for i := range user.BookMark {
 		if user.BookMark[i] == post.Id {
 			return true
