@@ -67,7 +67,7 @@ func main() {
 	router.GET("/api/followings", getFollowings)
 	router.GET("/api/bookMarks", getBookmarls)
 
-	router.Run(":8080")
+	router.Run(":8081")
 }
 
 func serveHTML(c *gin.Context) {
@@ -301,6 +301,9 @@ func getProfile(c *gin.Context, username string, other bool, follow bool) {
 		"creator": bson.M{
 			"$eq": username,
 		},
+		"parent": bson.M{
+			"$eq": "",
+		},
 	}
 	curP, errP := collectionP.Find(context.TODO(), filterP)
 	if errP != nil {
@@ -436,7 +439,7 @@ type Post struct {
 	Content    string   `json:"content,omitempty"`
 	Parent     string   `json:"parent,omitempty"`
 	Likes      []string `json:"likes,omitempty"`
-	Created_at int64    `json:"created-at,omitempty"`
+	Created_at string   `json:"created-at,omitempty"`
 }
 
 type PostForUser struct {
@@ -450,7 +453,7 @@ type PostForUser struct {
 	Mark          bool     `json:"mark"`
 	LikeNumber    int      `json:"likeNumber"`
 	CommentNumber int      `json:"commentNumber"`
-	Created_at    int64    `json:"created-at"`
+	Created_at    string   `json:"created-at"`
 }
 
 func markPost(c *gin.Context) {
@@ -643,7 +646,7 @@ func createPost(c *gin.Context) {
 	collection := client.Database("web_project").Collection("Post")
 	id := generateRandom()
 	insertResult, _ := collection.InsertOne(context.TODO(), Post{Id: id, Creator: username, Content: content, Parent: parent,
-		Created_at: time.Now().Unix()})
+		Created_at: time.Now().Format("01-02-2006")})
 	c.JSON(201, gin.H{
 		"id": insertResult.InsertedID,
 	})
@@ -875,7 +878,11 @@ func getTimeline(c *gin.Context) {
 	collectionP := client.Database("web_project").Collection("Post")
 	collectionU := client.Database("web_project").Collection("User")
 	var posts []Post
-	filterP := bson.M{}
+	filterP := bson.M{
+		"parent": bson.M{
+			"$eq": "",
+		},
+	}
 	curP, errP := collectionP.Find(context.TODO(), filterP)
 	if errP != nil {
 		c.JSON(409, gin.H{
