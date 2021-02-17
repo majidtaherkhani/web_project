@@ -262,7 +262,7 @@ func getMyProfile(c *gin.Context) {
 		})
 		return
 	}
-	getProfile(c, username)
+	getProfile(c, username, false, false)
 }
 func getOtherProfile(c *gin.Context) {
 	usernameM, ok := validateToken(c)
@@ -274,9 +274,16 @@ func getOtherProfile(c *gin.Context) {
 	}
 	fmt.Println(usernameM)
 	username := c.Param("username")
-	getProfile(c, username)
+	user := getUserById(usernameM)
+	following := false
+	for i := range user.Followings {
+		if user.Followings[i] == username {
+			following = true
+		}
+	}
+	getProfile(c, username, true, following)
 }
-func getProfile(c *gin.Context, username string) {
+func getProfile(c *gin.Context, username string, other bool, follow bool) {
 
 	collection := client.Database("web_project").Collection("User")
 	filter := bson.M{"username": username}
@@ -308,6 +315,15 @@ func getProfile(c *gin.Context, username string) {
 			return
 		}
 		posts = append(posts, post)
+	}
+	if other {
+		c.JSON(200, bson.M{"bio": profile.Bio,
+			"email":     profile.Email,
+			"posts":     convertPosts(posts, profile),
+			"following": len(profile.Followings),
+			"followers": len(profile.Followers),
+			"follow":    follow})
+		return
 	}
 	c.JSON(200, bson.M{"bio": profile.Bio,
 		"email":     profile.Email,
