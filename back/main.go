@@ -51,6 +51,7 @@ func main() {
 
 	router.GET("", serveHTML)
 
+	router.POST("/logout", logOut)
 	router.POST("/api/signup", signUp)
 	router.POST("/api/signin", signIn)
 	router.POST("/api/edit", editProfile)
@@ -1039,4 +1040,8 @@ func checkMark(post Post, user User) bool {
 		}
 	}
 	return false
+}
+
+func logOut(c *gin.Context) {
+	c.SetCookie("token", "", 0, "/", "localhost", false, false)
 }

@@ -528,14 +528,21 @@ textarea{
     font-weight: 300;
 }
 
-.profile-edit-btn {
-    font-size: 1.2rem;
+#profile-edit-btn {
+    font-size: 17px;
+    text-transform: capitalize;
     line-height: 1.8;
-    border: 0.1rem solid #dbdbdb;
-    border-radius: 0.3rem;
-    padding: 0 1rem;
+    border: 2px solid #00a7ff;
+    color: #00a7ff;
+    background-color: white;
+    border-radius: 20px;
+    padding: 5px 20px;
+    outline: none;
     margin-left: 1rem;
     cursor: pointer;
+}
+#profile-edit-btn:hover{
+    background: #d8eeff;
 }
 
 .profile-settings-btn {
@@ -654,9 +661,6 @@ textarea{
         padding: 0;
         text-align: center;
         margin-top: 1rem;
-    }
-
-    .profile-edit-btn {
         margin-left: 0;
     }
 
@@ -757,4 +761,3 @@ textarea{
     font-size:24px;
     color: #00A7FF;
 }
-

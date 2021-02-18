@@ -350,7 +350,7 @@ function make_profile_header(user_id, posts, following, followers, bio, me, foll
     
         <h1 class="profile-user-name">${user_id}</h1>
     
-        <button class="btn profile-edit-btn" onclick="Follow_unfollow()">${me == true ? "edit profile" : (follow == true ? "unfollow" : "follow")}</button>
+        <button class="btn profile-edit-btn" id="profile-edit-btn" onclick="Follow_unfollow()">${me == true ? "edit profile" : (follow == true ? "unfollow" : "follow")}</button>
     
     </div>
     
@@ -373,4 +373,15 @@ function make_profile_header(user_id, posts, following, followers, bio, me, foll
     <!-- End of profile section -->
     `
     return profile
+}
+
+function log_out() {
+    var request = {
+        method: 'POST'
+    };
+    fetch(url + "/logout", request).then(function (response) {
+        location.replace(url)
+    }).catch(function (error) {
+        console.log("Error: " + error);
+    })
 }
