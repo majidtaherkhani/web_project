@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="timeline.css">
     <script src="timeline.js"></script>
 
-
 </head>
 
 <body onload="load_timeline()">
@@ -22,13 +21,13 @@
                     <!-- <i class="fa fa-twitter"></i> -->
                 </div>
                 <div class="option">
-                    <div><a class="option-active"><i class="fa fa-home"></i><span>Home</span></a></div>
+                    <div><a onclick="load_timeline()" class="option-active"><i class="fa fa-home"></i><span>Home</span></a></div>
                     <div><a><i class="fa fa-hashtag"></i><span>Explore</span></a></div>
                     <div><a><i class="fa fa-bell"></i><span>Notification</span></a></div>
                     <div><a><i class="fa fa-envelope-o"></i><span>Messages</span></a></div>
                     <div><a><i class="fa fa-bookmark-o"></i><span>Bookmarks</span></a></div>
                     <div><a><i class="fa fa-list-alt"></i><span>Lists</span></a></div>
-                    <div><a onclick="profile(``)"><i class="fa fa-user-o"></i><span>Profile</span></a></div>
+                    <div><a onclick="Profile(``)"><i class="fa fa-user-o"></i><span>Profile</span></a></div>
                     <div><a><i class="fa fa-ellipsis-h"></i><span>More</span></a></div>
                 </div>
             </div>
@@ -58,43 +57,12 @@
                             <span><a href=""><i class="fa fa-smile-o"></i></a></span>
                             <span><a href=""><i class="fa fa-calender-plus-o"></i></a></span>
                         </div> -->
-                        <span onclick="post()"><button >Post</button></span>
+                        <span ><button onclick="Post()">Post</button></span>
                     </div>
                 </div>
 
                 <div class="others-tweets" id="others-tweets">
-                    <!-- Each person -->
-                    <!-- <div class="other-tweet">
-                        <div class="profile-msg">
-                            <div class="others-profile">
-                                <img src="images/no-image.jpg" alt="">
-                            </div>
-                            <div class="name-msg">
-                                <span>
-                                    <p><b>Narendra modi @narendremodi.<small>yesterday</small></b></p>
-                                </span>
-                                <div class="msg">
-                                    <p>hLorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
-                                        incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
-                                        nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-                                        Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-                                        fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
-                                        culpa qui officia deserunt mollit anim id est laborum.</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="your-reaction">
-                            <div class="comment" onclick="show_comments(this)"><i class="fa fa-comment-o"></i>
-                                <p>12</p>
-                            </div>
-                            <div class="like" onclick="like(this)"><i class="fa fa-heart-o"></i>
-                                <p>12</p>
-                            </div>
-                            <div class="bookmark" onclick="bookmark(this)"><i class="fa fa-bookmark"></i></div>
-                        </div>
-                    </div> -->
-                    <!-- End of Each person -->
-                   
+
 
 
                 </div>
@@ -109,8 +77,8 @@
         <div class="trending-menu">
             <div class="trending-center">
                 <div class="search">
-                    <span><i class="fa fa-search"></i></span>
-                    <input type="search" placeholder="Search Twitter">
+                    <span onclick="Search_user()"><i class="fa fa-search"></i></span>
+                    <input type="search" placeholder="Search Twitter"  id="search">
                 </div>
 
                 <div class="trending">
@@ -291,14 +259,14 @@
         <div class="modal-content">
             <span class="close" onclick="close_comments()">&times;</span>
             <div class="others-tweets" id="comments-others-tweets">
-                
+
             </div>
             <div class="commentBox">
                 <textarea class="commentText" placeholder="comment"></textarea>
                 <i class=" fa fa-paper-plane" onclick="comment(this)"></i>
             </div>
         </div>
-        
+
     </div>
 
 </body>

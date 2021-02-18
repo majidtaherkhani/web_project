@@ -58,7 +58,7 @@ func main() {
 	router.GET("/api/otherProfile/:username", getOtherProfile)
 	router.POST("/api/createPost", createPost)
 	router.POST("/api/like/:postId", likePost)
-	router.POST("/api/mark", markPost)
+	router.POST("/api/mark/:postId", markPost)
 	router.GET("/api/getPost/:postId", getPost)
 	router.GET("/api/getComments/:postId", getComent)
 	router.POST("/api/follow/:username", followUnfollow)
@@ -67,7 +67,7 @@ func main() {
 	router.GET("/api/followings", getFollowings)
 	router.GET("/api/bookMarks", getBookmarls)
 
-	router.Run(":8081")
+	router.Run(":8080")
 }
 
 func serveHTML(c *gin.Context) {
@@ -284,7 +284,6 @@ func getOtherProfile(c *gin.Context) {
 	getProfile(c, username, true, following)
 }
 func getProfile(c *gin.Context, username string, other bool, follow bool) {
-
 	collection := client.Database("web_project").Collection("User")
 	filter := bson.M{"username": username}
 	var profile User
@@ -297,6 +296,8 @@ func getProfile(c *gin.Context, username string, other bool, follow bool) {
 	}
 	collectionP := client.Database("web_project").Collection("Post")
 	var posts []Post
+	fmt.Println(username)
+
 	filterP := bson.M{
 		"creator": bson.M{
 			"$eq": username,
@@ -319,8 +320,11 @@ func getProfile(c *gin.Context, username string, other bool, follow bool) {
 		}
 		posts = append(posts, post)
 	}
+	fmt.Println(posts)
 	if other {
 		c.JSON(200, bson.M{"bio": profile.Bio,
+			"username": username,
+
 			"email":     profile.Email,
 			"posts":     convertPosts(posts, profile),
 			"following": len(profile.Followings),
@@ -428,7 +432,7 @@ type User struct {
 	Bio        string   `json:"bio,omitempty"`
 	Followers  []string `json:"followers,omitempty"`
 	Followings []string `json:"following,omitempty"`
-	BookMark   []string `json:"bookMark,omitempty"`
+	BookMark   []string `json:"bookmark,omitempty"`
 	Created_at string   `json:"created-at,omitempty"`
 }
 
@@ -479,6 +483,8 @@ func markPost(c *gin.Context) {
 		})
 		return
 	}
+	fmt.Println(user)
+	fmt.Println(postId)
 	for i := range user.BookMark {
 		if user.BookMark[i] == postId {
 			removeMark(c, i, user)
@@ -511,19 +517,24 @@ func removeMark(c *gin.Context, index int, user User) {
 		})
 		return
 	}
+	c.JSON(201, gin.H{
+		"message": "unmarked",
+	})
 	fmt.Println(result.UpsertedID)
 }
 
 func saveMark(c *gin.Context, user User, postId string) {
+	// fmt.Println(user.BookMark)
 	marks := append(user.BookMark, postId)
-	collection := client.Database("web_project").Collection("Post")
+	// fmt.Println(marks)
+	collection := client.Database("web_project").Collection("User")
 	filter := bson.M{
 		"username": bson.M{
 			"$eq": user.Username,
 		},
 	}
-	update := bson.M{"$set": bson.M{"bookMark": marks}}
-	result, err := collection.UpdateOne(
+	update := bson.M{"$set": bson.M{"bookmark": marks}}
+	_, err := collection.UpdateOne(
 		context.Background(),
 		filter,
 		update,
@@ -534,7 +545,9 @@ func saveMark(c *gin.Context, user User, postId string) {
 		})
 		return
 	}
-	fmt.Println(result.UpsertedID)
+	c.JSON(201, gin.H{
+		"message": "marked",
+	})
 
 }
 
@@ -819,6 +832,9 @@ func unfollow(c *gin.Context, user User, target User, followerIndex int, followi
 		})
 		return
 	}
+	c.JSON(201, gin.H{
+		"message": "unfollowed",
+	})
 	fmt.Println(resultT.UpsertedID)
 
 }
@@ -862,6 +878,9 @@ func follow(c *gin.Context, user User, target User) {
 		})
 		return
 	}
+	c.JSON(201, gin.H{
+		"message": "followed",
+	})
 	fmt.Println(resultT.UpsertedID)
 }
 

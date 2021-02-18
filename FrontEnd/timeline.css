@@ -345,6 +345,7 @@ textarea{
     font-size: 15px;
     color: #454545;
     letter-spacing: 1px;
+
 }
 .search span{
     position: absolute;
@@ -353,6 +354,7 @@ textarea{
     font-size: 20px;
     font-weight: 100;
     color: #454545;
+    cursor: pointer;
 }
 .trending, .follow{
     width: 100%;
@@ -533,6 +535,7 @@ textarea{
     border-radius: 0.3rem;
     padding: 0 1rem;
     margin-left: 1rem;
+    cursor: pointer;
 }
 
 .profile-settings-btn {
